@@ -11,7 +11,6 @@
   :root {
     --bg: #f2f5f4; --surface: #ffffff; --fg: #17211f; --muted: #5d6b68;
     --line: #d5dedb; --accent: #0f7a5c; --accent-fg: #ffffff; --accent-soft: #dcefe8;
-    --warn-bg: #fff4e0; --warn-fg: #6b4300; --warn-line: #f0d29a;
     --font-ui: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-num: "JetBrains Mono", ui-monospace, Consolas, monospace;
     color-scheme: light;
@@ -20,14 +19,12 @@
     :root:not([data-theme="light"]) {
       --bg: #101615; --surface: #18201f; --fg: #e6eeec; --muted: #93a39f;
       --line: #2b3735; --accent: #3fbf96; --accent-fg: #06231a; --accent-soft: #173a30;
-      --warn-bg: #3a2c12; --warn-fg: #f5d9a3; --warn-line: #5c4720;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #101615; --surface: #18201f; --fg: #e6eeec; --muted: #93a39f;
     --line: #2b3735; --accent: #3fbf96; --accent-fg: #06231a; --accent-soft: #173a30;
-      --warn-bg: #3a2c12; --warn-fg: #f5d9a3; --warn-line: #5c4720;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -54,11 +51,6 @@
   .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 
-  .errores {
-    display: grid; gap: 4px; padding: 12px 14px; border-radius: 10px; font-size: .92rem;
-    background: var(--warn-bg); color: var(--warn-fg); border: 1px solid var(--warn-line);
-    overflow-wrap: anywhere;
-  }
   .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .head label { font-weight: 700; }
   .count { font-family: var(--font-num); color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -99,7 +91,6 @@
     <div class="status" id="estado">Listo.</div>
     <div class="bar" hidden id="barra"><i id="progreso"></i></div>
   </div>
-  <div class="errores" id="errores" role="alert" hidden></div>
 
   <div class="head">
     <label for="lista">Números detectados</label>
@@ -178,7 +169,7 @@ function prepararImagen(file) {
       URL.revokeObjectURL(img.src);
       ok(c);
     };
-    img.onerror = () => mal(new Error("no se pudo abrir (si es una foto HEIC de iPhone, usa una captura de pantalla o JPG)"));
+    img.onerror = () => mal(new Error("no se pudo abrir"));
     img.src = URL.createObjectURL(file);
   });
 }
@@ -194,14 +185,14 @@ async function procesar(files) {
   const errores = [];
   files = [...files].filter(f => {
     const problema = validarArchivo(f);
-    if (problema) errores.push(`${f.name}: ${problema}`);
+    if (problema) errores.push(`${f.name} (${problema})`);
     return !problema;
   });
   if (files.length > MAX_IMAGENES) {
     const sobran = files.splice(MAX_IMAGENES);
-    errores.push(`Solo se leen ${MAX_IMAGENES} imágenes por vez. Vuelve a subir estas ${sobran.length}: ${sobran.map(f => f.name).join(", ")}`);
+    errores.push(...sobran.map(f => `${f.name} (pasa el límite de ${MAX_IMAGENES} por vez)`));
   }
-  if (!files.length) { mostrarErrores(errores); return; }
+  if (!files.length) { estado.textContent = resumenErrores(errores); return; }
   barra.hidden = false;
   const encontrados = [];
   try {
@@ -214,7 +205,7 @@ async function procesar(files) {
         const { data } = await worker.recognize(await prepararImagen(files[i]));
         encontrados.push(...extraerNumeros(data.text));
       } catch (e) {
-        errores.push(`${files[i].name}: ${e.message}`);
+        errores.push(`${files[i].name} (${e.message})`);
       }
     }
   } catch (e) {
@@ -225,16 +216,11 @@ async function procesar(files) {
   }
   agregar(encontrados);
   barra.hidden = true;
-  mostrarErrores(errores);
+  if (errores.length) estado.textContent += " " + resumenErrores(errores);
 }
 
-function mostrarErrores(errores) {
-  const caja = $("errores");
-  caja.hidden = !errores.length;
-  caja.replaceChildren(
-    Object.assign(document.createElement("strong"), { textContent: "Se saltaron estos archivos:" }),
-    ...errores.map(t => Object.assign(document.createElement("div"), { textContent: t }))
-  );
+function resumenErrores(errores) {
+  return `No se leyeron ${errores.length} archivo(s): ${errores.join(", ")}.`;
 }
 
 function agregar(nuevos) {
@@ -259,7 +245,7 @@ document.addEventListener("paste", e => {
 });
 lista.addEventListener("input", actualizarContador);
 
-$("limpiar").addEventListener("click", () => { lista.value = ""; mostrarErrores([]); actualizarContador(); estado.textContent = "Lista vacía."; });
+$("limpiar").addEventListener("click", () => { lista.value = ""; actualizarContador(); estado.textContent = "Lista vacía."; });
 
 $("guardar").addEventListener("click", () => {
   let numeros = numerosActuales();
