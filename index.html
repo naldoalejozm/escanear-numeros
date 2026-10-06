@@ -108,9 +108,9 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-const MIN_DIGITOS = 7, MAX_DIGITOS = 15;
-const CELULAR_PE = /51(9\d{8})$/;
-const PATRON = /\+?\(?\d[\d\s\-.()]{5,}\d/g;
+// Celular de Perú: 9 + 8 dígitos (con espacios/guiones sueltos), con "+51" opcional delante.
+// El "51" se acepta aunque el OCR haya leído el "+" como otro carácter.
+const PATRON = /(\+?\s?5\s?1[\s.\-]*)?(9(?:[\s.\-]?\d){8})(?!\d)/g;
 const CORRECCIONES = { O: "0", o: "0", D: "0", l: "1", I: "1", "|": "1", S: "5", B: "8" };
 
 const $ = id => document.getElementById(id);
@@ -131,15 +131,14 @@ function extraerNumeros(texto) {
   for (let linea of texto.split("\n")) {
     const digitos = (linea.match(/\d/g) || []).length;
     const largo = linea.replace(/\s/g, "").length || 1;
-    if (digitos >= MIN_DIGITOS - 1 && digitos / largo > 0.6) {
+    if (digitos >= 8 && digitos / largo > 0.6) {
       linea = linea.replace(/[OoDlI|SB]/g, c => CORRECCIONES[c]);
     }
     for (const m of linea.matchAll(PATRON)) {
-      let d = m[0].replace(/\D/g, "");
-      // quita el 51 aunque el OCR haya leído el "+" como otro carácter
-      const celular = d.match(CELULAR_PE);
-      if (celular) d = celular[1];
-      if (d.length >= MIN_DIGITOS && d.length <= MAX_DIGITOS) numeros.push(d);
+      // sin "+51" delante, el 9 no puede ser la continuación de otro número
+      const antes = linea.slice(Math.max(0, m.index - 2), m.index);
+      if (!m[1] && antes && (/\d$/.test(antes) || /^\d[\s.\-]$/.test(antes))) continue;
+      numeros.push(m[2].replace(/\D/g, ""));
     }
   }
   return numeros;
