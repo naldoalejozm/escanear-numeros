@@ -108,7 +108,8 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-const MIN_DIGITOS = 7, MAX_DIGITOS = 15, CODIGO_PAIS = "51";
+const MIN_DIGITOS = 7, MAX_DIGITOS = 15;
+const CELULAR_PE = /51(9\d{8})$/;
 const PATRON = /\+?\(?\d[\d\s\-.()]{5,}\d/g;
 const CORRECCIONES = { O: "0", o: "0", D: "0", l: "1", I: "1", "|": "1", S: "5", B: "8" };
 
@@ -135,7 +136,9 @@ function extraerNumeros(texto) {
     }
     for (const m of linea.matchAll(PATRON)) {
       let d = m[0].replace(/\D/g, "");
-      if (d.length === 11 && d.startsWith(CODIGO_PAIS)) d = d.slice(CODIGO_PAIS.length);
+      // quita el 51 aunque el OCR haya leído el "+" como otro carácter
+      const celular = d.match(CELULAR_PE);
+      if (celular) d = celular[1];
       if (d.length >= MIN_DIGITOS && d.length <= MAX_DIGITOS) numeros.push(d);
     }
   }
