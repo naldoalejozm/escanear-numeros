@@ -92,7 +92,7 @@
   <label class="drop" id="drop">
     <input type="file" id="archivo" accept="image/*" multiple>
     <strong>Elegir imágenes o tomar foto</strong>
-    <span>También puedes arrastrarlas aquí o pegar con Ctrl+V</span>
+    <span>Hasta 20 imágenes por vez, de máximo 20 MB cada una. También puedes arrastrarlas aquí o pegar con Ctrl+V</span>
   </label>
 
   <div>
@@ -154,6 +154,7 @@ function extraerNumeros(texto) {
 }
 
 const MAX_MB = 20;
+const MAX_IMAGENES = 20; // por tanda; más puede colgar celulares con poca memoria
 const MAX_LADO = 4000; // px; más grande solo hace lento al OCR
 
 function validarArchivo(file) {
@@ -196,6 +197,10 @@ async function procesar(files) {
     if (problema) errores.push(`${f.name}: ${problema}`);
     return !problema;
   });
+  if (files.length > MAX_IMAGENES) {
+    const sobran = files.splice(MAX_IMAGENES);
+    errores.push(`Solo se leen ${MAX_IMAGENES} imágenes por vez. Vuelve a subir estas ${sobran.length}: ${sobran.map(f => f.name).join(", ")}`);
+  }
   if (!files.length) { mostrarErrores(errores); return; }
   barra.hidden = false;
   const encontrados = [];
